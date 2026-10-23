@@ -1,0 +1,34 @@
+# ---- runtime state (written by the dashboard, never commit) ----
+dash_hist.json
+temp_long.json
+*.tmp
+data.json
+dash.html
+
+# ---- secrets / local overrides ----
+.env
+config.local.yaml
+*.pem
+*.key
+!docs/*.png
+
+# ---- python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- editors / OS ----
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ---- logs ----
+*.log
+logs/

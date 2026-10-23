@@ -1,0 +1,21 @@
+[Unit]
+Description=clusterwatch cluster status dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Run as the user that owns the SSH key configured under `ssh.key`, so the
+# optional nvidia-smi probe can read it. Never run this as root.
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/clusterwatch
+ExecStart=/usr/bin/python3 /opt/clusterwatch/dgxdash.py
+# Environment=DGXDASH_CONFIG=/opt/clusterwatch/config.yaml
+Restart=always
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
