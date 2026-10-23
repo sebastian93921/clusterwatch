@@ -1,0 +1,126 @@
+# ============================================================================
+# dgxdash configuration
+# ----------------------------------------------------------------------------
+# Edit this file to change WHAT the dashboard lists and WHERE it gets data.
+# After any change:  sudo -n systemctl restart dgxdash
+# Verify:            curl -s http://127.0.0.1:8090/data | head -c 400
+# The service reads this file at start-up only (no hot reload).
+# Secrets are never stored here: only URLs. Bearer tokens are not needed
+# because node_exporter and the engine endpoints are unauthenticated.
+# ============================================================================
+
+server:
+  bind: 0.0.0.0          # 0.0.0.0 = reachable over Tailscale; use 127.0.0.1 for local-only
+  port: 8090
+  refresh_seconds: 5     # browser poll interval (page-side)
+  page_title: "DGX Spark cluster · TP=2"
+
+# ---------------------------------------------------------------------------
+# ssh: only used for the optional nvidia-smi probe on boxes that expose GPU
+# stats via SSH. Everything else is HTTP-only. Never stores credentials.
+# ---------------------------------------------------------------------------
+ssh:
+  key: "~/.ssh/id_ed25519"   # path to the private key (~ expands)
+  gpu_cache_s: 60            # nvidia-smi over SSH is slow; cache the result
+
+# ---------------------------------------------------------------------------
+# hosts: every machine the page will render as a card, in this exact order.
+# ---------------------------------------------------------------------------
+# key            short internal id, also the JSON field name in /data
+# label          card heading shown on the page
+# role           free-form note, shown in /data only
+# node_exporter  full URL of node_exporter /metrics (port 9100 by default)
+# accent         card accent colour
+# enabled        false = keep the definition but do not scrape or render it
+# gpu.ssh        optional; user@host reachable by key for nvidia-smi (null = skip)
+# gpu.via        optional; jump host for boxes that only accept another box's key
+# ---------------------------------------------------------------------------
+hosts:
+  - key: spark
+    label: "spark-ae24 · head"
+    role: "DGX Spark GB10 — LLM engine host"
+    node_exporter: "http://192.168.1.11:9100/metrics"
+    accent: "#5ec8ff"
+    enabled: true
+    gpu:
+      ssh: "gpu@192.168.1.11"
+      via: null
+
+  - key: edge
+    label: "edgexpert-e9e5 · worker"
+    role: "DGX Spark GB10 — TP=2 worker"
+    node_exporter: "http://192.168.1.12:9100/metrics"
+    accent: "#5ee0b4"
+    enabled: true
+    gpu:
+      ssh: "gpu@192.168.1.12"
+      via: "gpu@192.168.1.11"
+
+  - key: oracle
+    label: "oracle-sg-2c12g · this VM"
+    role: "Oracle Cloud VM that runs this dashboard"
+    node_exporter: "http://127.0.0.1:9100/metrics"
+    accent: "#ffb45c"
+    enabled: true
+    gpu:
+      ssh: null
+      via: null
+
+  - key: mini
+    label: "arch · mini pc"
+    role: "x86 mini PC"
+    node_exporter: "http://192.168.1.13:9100/metrics"
+    accent: "#bda8ff"
+    enabled: true
+    gpu:
+      ssh: null
+      via: null
+
+# ---------------------------------------------------------------------------
+# llm_engine: the OpenAI-compatible inference server the dashboard reads.
+# Nothing here is hardcoded in dgxdash.py; change base_url to point the
+# dashboard at a different engine (vLLM or TensorFold are both supported —
+# the metric namespace is auto-detected).
+# ---------------------------------------------------------------------------
+llm_engine:
+  base_url: "http://192.168.1.11:8888"
+  metrics_path: "/metrics"
+  health_path: "/health"
+  models_path: "/v1/models"      # model identity is read live; never hardcoded
+  model: null                    # null = auto-detect from models_path
+  context_window_fallback: 500000  # used only when /health omits context_length
+  scrape_interval_s: 0.8         # gap between the two counter snapshots (rate maths)
+  timeout_s: 5
+  enabled: true
+
+# ---------------------------------------------------------------------------
+# comfyui: image-generation node (optional). Degrades to {"up": false}.
+# ---------------------------------------------------------------------------
+comfyui:
+  base_url: "http://192.168.1.11:8188"
+  system_stats_path: "/system_stats"
+  queue_path: "/queue"
+  cache_seconds: 30
+  enabled: true
+
+# ---------------------------------------------------------------------------
+# history: rolling peaks and long-range thermal retention.
+# ---------------------------------------------------------------------------
+history:
+  peaks_window_s: 3600           # "1 h peak" KPI window
+  short_samples: 72              # engine chart samples kept server-side
+  # short_path / long_path default to files next to dgxdash.py; set them only to
+  # relocate state (e.g. "/var/lib/clusterwatch/dash_hist.json")
+  # short_path: "/var/lib/clusterwatch/dash_hist.json"
+  long_interval_s: 60            # background sampler period
+  long_retention_minutes: 10080  # 7 days
+  # long_path: "/var/lib/clusterwatch/temp_long.json"
+
+# ---------------------------------------------------------------------------
+# thresholds: used only for chip colouring on the page (no alerting).
+# ---------------------------------------------------------------------------
+thresholds:
+  soc_hot_c: 85
+  soc_crit_c: 95
+  nvme_hot_c: 70
+  nvme_crit_c: 80
